@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gregorian and Hindu Calendars</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for Inter font and general body styling */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6; /* Light gray background */
+            min-height: 100vh; /* Ensure body takes full viewport height */
+            display: flex;
+            flex-direction: column;
+        }
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr); /* 7 columns for days of the week */
+            gap: 0.5rem; /* Spacing between days */
+        }
+        .day-header {
+            background-color: #e5e7eb; /* Lighter gray for day headers */
+            padding: 0.75rem 0.5rem;
+            font-weight: 600;
+            text-align: center;
+            border-radius: 0.5rem; /* Rounded corners for day headers */
+        }
+        .day-cell {
+            background-color: #ffffff; /* White background for day cells */
+            padding: 1rem 0.5rem;
+            text-align: center;
+            border-radius: 0.5rem; /* Rounded corners for day cells */
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1); /* Subtle shadow */
+            transition: transform 0.1s ease-in-out;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 80px; /* Ensure enough height for day and tithi */
+        }
+        .day-cell:hover {
+            transform: translateY(-2px); /* Slight lift on hover */
+        }
+        .current-day {
+            background-color: #3b82f6; /* Blue for current day */
+            color: white;
+            font-weight: 700;
+        }
+        .other-month-day {
+            color: #9ca3af; /* Gray out days from other months */
+        }
+        .nav-button {
+            background-color: #4f46e5; /* Indigo for navigation buttons */
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.75rem; /* More rounded corners for buttons */
+            font-weight: 600;
+            transition: background-color 0.2s ease-in-out;
+        }
+        .nav-button:hover {
+            background-color: #4338ca; /* Darker indigo on hover */
+        }
+        .tab-button {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.75rem;
+            font-weight: 600;
+            transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+            cursor: pointer;
+        }
+        .tab-button.active {
+            background-color: #10b981; /* Green for active tab */
+            color: white;
+        }
+        .tab-button:not(.active):hover {
+            background-color: #e0f2f7; /* Light blueish on hover for inactive tabs */
+            color: #374151;
+        }
+        .calendar-container {
+            min-height: 400px; /* Ensure a minimum height for calendar display */
+        }
+        .tithi-text {
+            font-size: 0.75rem; /* Smaller text for tithi */
+            color: #6b7280; /* Gray color for tithi */
+            margin-top: 0.25rem;
+        }
+        .current-day .tithi-text {
+            color: white; /* White tithi text on current day */
+        }
+        .other-month-day .tithi-text {
+            color: #a8a8a8; /* Lighter gray for tithi in other months */
+        }
+        .hindu-month-text {
+            font-size: 1rem; /* Slightly smaller for Hindu month */
+            color: #4b5563; /* Darker gray for Hindu month */
+            font-weight: 500;
+            margin-top: 0.25rem;
+        }
+
+        /* Toggle Switch Styling */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            -webkit-transition: .4s;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            -webkit-transition: .4s;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #10b981; /* Green when checked */
+        }
+
+        input:focus + .slider {
+            box-shadow: 0 0 1px #10b981;
+        }
+
+        input:checked + .slider:before {
+            -webkit-transform: translateX(26px);
+            -ms-transform: translateX(26px);
+            transform: translateX(26px);
+        }
+        .tithi-finder-section {
+            background-color: #f0fdf4; /* Light green background for the finder */
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-top: 2rem;
+            border: 1px solid #dcfce7;
+        }
+        .tithi-finder-results {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            background-color: #ffffff;
+            margin-top: 1rem;
+        }
+        .tithi-finder-results p {
+            padding: 0.25rem 0;
+            border-bottom: 1px dashed #f3f4f6;
+        }
+        .tithi-finder-results p:last-child {
+            border-bottom: none;
+        }
+
+        /* Hindu Calendar Specific Styles */
+        .hindu-calendar-view {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            width: 100%;
+            max-width: 700px; /* Wider for date display */
+            margin: auto;
+            text-align: center;
+        }
+        .hindu-paksha-section {
+            background-color: #fff7ed; /* Light orange background for paksha */
+            border: 1px solid #fed7aa;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .hindu-paksha-header {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #ea580c; /* Darker orange */
+            margin-bottom: 1rem;
+        }
+        .hindu-tithi-date-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); /* Responsive grid for tithis and dates */
+            gap: 0.75rem;
+        }
+        .hindu-tithi-date-item {
+            background-color: #fff;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            font-size: 0.9rem;
+            color: #374151;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .hindu-tithi-name {
+            font-weight: 600;
+            color: #4b5563;
+        }
+        .gregorian-date-for-tithi {
+            font-size: 0.8rem;
+            color: #6b7280;
+            margin-top: 0.25rem;
+        }
+        .converter-section {
+            background-color: #e0f2f7; /* Light blue for converter section */
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-top: 2rem;
+            border: 1px solid #bae6fd;
+        }
+        .converter-result {
+            margin-top: 1rem;
+            padding: 0.75rem;
+            background-color: #ffffff;
+            border: 1px solid #d1e7dd;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            color: #065f46;
+            text-align: center;
+        }
+    </style>
+</head>
+<body class="p-4 flex flex-col items-center">
+
+    <header class="w-full max-w-4xl bg-white p-6 rounded-xl shadow-lg mb-8 text-center">
+        <h1 class="text-4xl font-extrabold text-gray-900 mb-2">Explore Calendars</h1>
+        <p class="text-lg text-gray-600">Discover different ways to track time.</p>
+    </header>
+
+    <nav class="w-full max-w-4xl bg-white p-4 rounded-xl shadow-lg mb-8 flex flex-wrap justify-center gap-4">
+        <button id="gregorian-tab" class="tab-button active">Gregorian Calendar</button>
+        <button id="hindu-tab" class="tab-button">Hindu Calendar </button>
+    </nav>
+
+    <div id="hindu-details-toggle-container" class="w-full max-w-4xl bg-white p-4 rounded-xl shadow-lg mb-8 flex items-center justify-center gap-4">
+        <label for="showHinduDetails" class="text-lg font-semibold text-gray-800">Show Hindu Calendar Details (in Gregorian View):</label>
+        <label class="toggle-switch">
+            <input type="checkbox" id="showHinduDetails" checked>
+            <span class="slider"></span>
+        </label>
+    </div>
+
+    <main id="calendar-display" class="w-full max-w-4xl bg-white p-8 rounded-xl shadow-lg flex-grow flex flex-col items-center justify-center calendar-container">
+        <p class="text-gray-500 text-lg">Select a calendar type to view its representation.</p>
+    </main>
+
+    <footer class="w-full max-w-4xl text-center text-gray-500 text-sm mt-8 p-4">
+        &copy; 2025 Calendar Explorer. All rights reserved.
+    </footer>
+
+    <script>
+        // Get references to DOM elements
+        const calendarDisplay = document.getElementById('calendar-display');
+        const gregorianTab = document.getElementById('gregorian-tab');
+        const hinduTab = document.getElementById('hindu-tab');
+        const showHinduDetailsToggle = document.getElementById('showHinduDetails');
+        const hinduDetailsToggleContainer = document.getElementById('hindu-details-toggle-container');
+        const today = new Date(); // Get today's date for highlighting
+
+        let currentMonth = today.getMonth(); // 0-indexed Gregorian month
+        let currentYear = today.getFullYear();
+        
+        // Initial values for the conceptual Hindu calendar display
+        let selectedHinduMonthIndex = 0; // Chaitra
+        let selectedHinduCalendarYear = today.getFullYear(); // Default to current Gregorian year for conceptual alignment
+
+        let currentActiveTab = 'gregorian-tab'; // Keep track of the active tab
+
+        // Array of Tithi names for conceptual display and selection
+        const conceptualTithis = [
+            "Pratipada", "Dwitiya", "Tritiya", "Chaturthi", "Panchami",
+            "Shashthi", "Saptami", "Ashtami", "Navami", "Dashami",
+            "Ekadashi", "Dwadashi", "Trayodashi", "Chaturdashi", "Purnima", // Shukla Paksha (1-15)
+            "Pratipada", "Dwitiya", "Tritiya", "Chaturthi", "Panchami",
+            "Shashthi", "Saptami", "Ashtami", "Navami", "Dashami",
+            "Ekadashi", "Dwadashi", "Trayodashi", "Chaturdashi", "Amavasya" // Krishna Paksha (16-30)
+        ];
+
+        // Function to get a conceptual Tithi name (for demonstration purposes only)
+        // In a real application, this would require complex astronomical calculations.
+        function getConceptualTithi(dayOfMonth) {
+            // This is a simplified mapping for demonstration.
+            // In a real Hindu calendar, Tithi depends on lunar phase, not Gregorian day number.
+            return conceptualTithis[(dayOfMonth - 1) % conceptualTithis.length];
+        }
+
+        // Function to get a conceptual Hindu month name based on Gregorian month
+        // This is a simplified mapping and not astronomically accurate.
+        function getConceptualHinduMonth(gregorianMonth) {
+            const hinduMonthNames = [
+                "Pausha / Magha",      // Jan (0)
+                "Magha / Phalguna",    // Feb (1)
+                "Phalguna / Chaitra",  // Mar (2)
+                "Chaitra / Vaishakha", // Apr (3)
+                "Vaishakha / Jyeshtha",// May (4)
+                "Jyeshtha / Ashadha",  // Jun (5)
+                "Ashadha / Shravana",  // Jul (6)
+                "Shravana / Bhadrapada",// Aug (7)
+                "Bhadrapada / Ashwin", // Sep (8)
+                "Ashwin / Kartika",    // Oct (9)
+                "Kartika / Margashirsha",// Nov (10)
+                "Margashirsha / Pausha" // Dec (11)
+            ];
+            return hinduMonthNames[gregorianMonth];
+        }
+
+        // Array of Hindu month names for the conceptual Hindu calendar view
+        const hinduCalendarMonths = [
+            "Chaitra", "Vaishakha", "Jyeshtha", "Ashadha", "Shravana",
+            "Bhadrapada", "Ashwin", "Kartika", "Margashirsha", "Pausha", "Magha", "Phalguna"
+        ];
+
+        // Function to render the Gregorian Calendar
+        function renderGregorianCalendar(month, year, showHinduDetails = false) {
+            const date = new Date(year, month, 1);
+            const firstDayOfMonth = date.getDay(); // Day of the week (0 for Sunday, 6 for Saturday)
+            const daysInMonth = new Date(year, month + 1, 0).getDate(); // Number of days in current month
+            const daysInPrevMonth = new Date(year, month, 0).getDate(); // Number of days in previous month
+
+            const monthNames = ["January", "February", "March", "April", "May", "June",
+                                "July", "August", "September", "October", "November", "December"];
+            const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+            const hinduMonth = getConceptualHinduMonth(month); // Get conceptual Hindu month
+
+            let calendarHTML = `
+                <div class="flex justify-between items-center w-full mb-6">
+                    <button id="prev-month" class="nav-button">&larr; Previous</button>
+                    <div class="text-center">
+                        <h2 class="text-3xl font-bold text-gray-800">${monthNames[month]} ${year}</h2>
+                        ${showHinduDetails ? `<p class="hindu-month-text">(Hindu Month: ${hinduMonth})</p>` : ''}
+                    </div>
+                    <button id="next-month" class="nav-button">Next &rarr;</button>
+                </div>
+                <div class="calendar-grid w-full">
+            `;
+
+            // Day headers
+            dayNames.forEach(day => {
+                calendarHTML += `<div class="day-header">${day}</div>`;
+            });
+
+            // Fill leading empty cells with days from the previous month
+            for (let i = 0; i < firstDayOfMonth; i++) {
+                const day = daysInPrevMonth - firstDayOfMonth + i + 1;
+                calendarHTML += `
+                    <div class="day-cell other-month-day">
+                        <span>${day}</span>
+                        ${showHinduDetails ? `<span class="tithi-text">Tithi (Concept)</span>` : ''}
+                    </div>
+                `;
+            }
+
+            // Fill current month days
+            for (let day = 1; day <= daysInMonth; day++) {
+                let classes = "day-cell";
+                // Check if it's today's date
+                if (day === today.getDate() && month === today.getMonth() && year === today.getFullYear()) {
+                    classes += " current-day";
+                }
+                const tithi = getConceptualTithi(day); // Get conceptual tithi
+                calendarHTML += `
+                    <div class="${classes}">
+                        <span>${day}</span>
+                        ${showHinduDetails ? `<span class="tithi-text">${tithi}</span>` : ''}
+                    </div>
+                `;
+            }
+
+            // Fill trailing empty cells with days from the next month
+            const totalCells = firstDayOfMonth + daysInMonth;
+            const remainingCells = 42 - totalCells; // Ensure 6 rows for consistency (6*7=42)
+            for (let i = 1; i <= remainingCells; i++) {
+                const day = i; // Day from the next month
+                calendarHTML += `
+                    <div class="day-cell other-month-day">
+                        <span>${day}</span>
+                        ${showHinduDetails ? `<span class="tithi-text">Tithi (Concept)</span>` : ''}
+                    </div>
+                `;
+            }
+
+            calendarHTML += `</div>`;
+            calendarHTML += `
+                <p class="text-sm text-gray-500 mt-6 text-center">
+                    <span class="font-semibold">Note:</span> The Tithi and Hindu Month displayed here are conceptual and for demonstration purposes only.
+                    Accurate Hindu calendar calculations require complex astronomical algorithms and vary by region.
+                </p>
+            `;
+
+            // Add Tithi Finder section if Hindu details are shown
+            if (showHinduDetails) {
+                calendarHTML += `
+                    <div class="tithi-finder-section w-full max-w-xl mx-auto mt-8">
+                        <h3 class="text-2xl font-bold text-gray-800 mb-4 text-center">Find Conceptual Tithi Across Years</h3>
+                        <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-4">
+                            <label for="tithi-select" class="font-medium text-gray-700">Select Tithi:</label>
+                            <select id="tithi-select" class="p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                                ${conceptualTithis.map(tithi => `<option value="${tithi}">${tithi}</option>`).join('')}
+                            </select>
+                            <button id="find-tithis-button" class="nav-button">Find Tithis</button>
+                        </div>
+                        <div id="tithi-results" class="tithi-finder-results text-gray-700">
+                            <p class="text-center text-gray-500">Select a Tithi and click "Find Tithis" to see conceptual dates.</p>
+                        </div>
+                        <p class="text-sm text-gray-500 mt-4 text-center">
+                            <span class="font-semibold">Disclaimer:</span> Results are based on the conceptual Tithi logic (day number modulo 15) and are NOT astronomically accurate.
+                        </p>
+                    </div>
+                `;
+            }
+
+            calendarDisplay.innerHTML = calendarHTML;
+
+            // Add event listeners for month navigation
+            document.getElementById('prev-month').addEventListener('click', () => {
+                currentMonth--;
+                if (currentMonth < 0) {
+                    currentMonth = 11;
+                    currentYear--;
+                }
+                renderGregorianCalendar(currentMonth, currentYear, showHinduDetailsToggle.checked);
+            });
+
+            document.getElementById('next-month').addEventListener('click', () => {
+                currentMonth++;
+                if (currentMonth > 11) {
+                    currentMonth = 0;
+                    currentYear++;
+                }
+                renderGregorianCalendar(currentMonth, currentYear, showHinduDetailsToggle.checked);
+            });
+
+            // Add event listener for Tithi finder button if the section is visible
+            if (showHinduDetails) {
+                document.getElementById('find-tithis-button').addEventListener('click', findConceptualTithis);
+            }
+        }
+
+        // Function to find conceptual Tithis across years
+        function findConceptualTithis() {
+            const selectedTithi = document.getElementById('tithi-select').value;
+            const tithiResultsDiv = document.getElementById('tithi-results');
+            let resultsHTML = '';
+            const yearsToSearch = 3; // Search current year, and 2 years before/after
+
+            const startYear = currentYear - yearsToSearch;
+            const endYear = currentYear + yearsToSearch;
+
+            const monthNames = ["January", "February", "March", "April", "May", "June",
+                                "July", "August", "September", "October", "November", "December"];
+
+            let foundResults = [];
+
+            for (let year = startYear; year <= endYear; year++) {
+                for (let month = 0; month < 12; month++) {
+                    const daysInMonth = new Date(year, month + 1, 0).getDate();
+                    for (let day = 1; day <= daysInMonth; day++) {
+                        if (getConceptualTithi(day) === selectedTithi) {
+                            const hinduMonth = getConceptualHinduMonth(month);
+                            foundResults.push(`${monthNames[month]} ${day}, ${year} (Hindu Month: ${hinduMonth}, Tithi: ${selectedTithi})`);
+                        }
+                    }
+                }
+            }
+
+            if (foundResults.length > 0) {
+                resultsHTML = `<h4 class="font-semibold text-lg mb-2 text-center">Conceptual "${selectedTithi}" Tithis Found:</h4>`;
+                foundResults.forEach(dateStr => {
+                    resultsHTML += `<p>${dateStr}</p>`;
+                });
+            } else {
+                resultsHTML = `<p class="text-center text-gray-500">No conceptual "${selectedTithi}" Tithis found in the selected range.</p>`;
+            }
+
+            tithiResultsDiv.innerHTML = resultsHTML;
+        }
+
+
+        // Function to render Hindu Calendar (Conceptual)
+        function renderHinduCalendar() {
+            // Hide the Hindu details toggle when in this view
+            hinduDetailsToggleContainer.classList.add('hidden');
+
+            const currentHinduMonthName = hinduCalendarMonths[selectedHinduMonthIndex];
+            const currentGregorianYear = selectedHinduCalendarYear; // Use the selected year for conceptual alignment
+
+            // Determine a conceptual start date for the Hindu month for Gregorian alignment
+            // This is a simplified starting point. Chaitra 1 roughly aligns with March 21st.
+            // We will adjust this start date conceptually based on the Hindu month index.
+            let conceptualGregorianStartDate = new Date(currentGregorianYear, 2, 21); // Start with March 21st
+            conceptualGregorianStartDate.setDate(conceptualGregorianStartDate.getDate() + (selectedHinduMonthIndex * 29.5)); // Roughly advance by 29.5 days per month
+
+            let calendarHTML = `
+                <div class="flex flex-col sm:flex-row justify-between items-center w-full mb-6 gap-4">
+                    <button id="prev-hindu-month" class="nav-button">&larr; Previous Month</button>
+                    <div class="flex flex-col items-center">
+                        <h2 class="text-3xl font-bold text-gray-800">Conceptual Hindu Month:</h2>
+                        <div class="flex items-center gap-2 mt-2">
+                            <select id="hindu-month-select" class="p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                                ${hinduCalendarMonths.map((month, index) => `<option value="${index}" ${index === selectedHinduMonthIndex ? 'selected' : ''}>${month}</option>`).join('')}
+                            </select>
+                            <input type="number" id="hindu-year-input" class="p-2 border border-gray-300 rounded-md shadow-sm w-24 text-center" value="${selectedHinduCalendarYear}" min="1900" max="2100">
+                        </div>
+                    </div>
+                    <button id="next-hindu-month" class="nav-button">Next Month &rarr;</button>
+                </div>
+                <p class="text-sm text-gray-500 mt-2 mb-6 text-center">
+                    <span class="font-semibold">Note:</span> This is a conceptual representation of a Hindu lunar month, showing its structure
+                    with approximate Gregorian date alignments. Actual Hindu calendar dates and Tithis are astronomically determined and vary by region.
+                </p>
+                <div class="hindu-calendar-view">
+                    <div class="hindu-paksha-section">
+                        <h3 class="hindu-paksha-header">Shukla Paksha (Waxing Moon)</h3>
+                        <div class="hindu-tithi-date-list">
+                            ${conceptualTithis.slice(0, 15).map((tithi, index) => {
+                                const gregorianDate = new Date(conceptualGregorianStartDate);
+                                gregorianDate.setDate(conceptualGregorianStartDate.getDate() + index);
+                                return `
+                                    <div class="hindu-tithi-date-item">
+                                        <span class="hindu-tithi-name">${tithi}</span>
+                                        <span class="gregorian-date-for-tithi">${gregorianDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                    <div class="hindu-paksha-section">
+                        <h3 class="hindu-paksha-header">Krishna Paksha (Waning Moon)</h3>
+                        <div class="hindu-tithi-date-list">
+                            ${conceptualTithis.slice(15, 30).map((tithi, index) => {
+                                const gregorianDate = new Date(conceptualGregorianStartDate);
+                                gregorianDate.setDate(conceptualGregorianStartDate.getDate() + 15 + index); // +15 for Shukla Paksha days
+                                return `
+                                    <div class="hindu-tithi-date-item">
+                                        <span class="hindu-tithi-name">${tithi}</span>
+                                        <span class="gregorian-date-for-tithi">${gregorianDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="converter-section w-full max-w-xl mx-auto mt-8">
+                    <h3 class="text-2xl font-bold text-gray-800 mb-4 text-center">Hindu to Gregorian Date Converter (Conceptual)</h3>
+                    <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-4">
+                        <label for="converter-year" class="font-medium text-gray-700">Year:</label>
+                        <input type="number" id="converter-year" class="p-2 border border-gray-300 rounded-md shadow-sm w-24" value="${today.getFullYear()}" min="1900" max="2100">
+                        
+                        <label for="converter-hindu-month" class="font-medium text-gray-700">Hindu Month:</label>
+                        <select id="converter-hindu-month" class="p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            ${hinduCalendarMonths.map((month, index) => `<option value="${index}">${month}</option>`).join('')}
+                        </select>
+                        
+                        <label for="converter-tithi" class="font-medium text-gray-700">Tithi:</label>
+                        <select id="converter-tithi" class="p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            ${conceptualTithis.map((tithi, index) => `<option value="${index}">${tithi} (Day ${index + 1})</option>`).join('')}
+                        </select>
+                    </div>
+                    <button id="get-gregorian-date-button" class="nav-button w-full mt-4">Get Gregorian Date</button>
+                    <div id="converter-result" class="converter-result hidden"></div>
+                    <p class="text-sm text-gray-500 mt-4 text-center">
+                        <span class="font-semibold">Disclaimer:</span> This conversion is based on conceptual alignments and is NOT astronomically accurate.
+                    </p>
+                </div>
+            `;
+            calendarDisplay.innerHTML = calendarHTML;
+
+            // Add event listeners for Hindu month navigation
+            document.getElementById('prev-hindu-month').addEventListener('click', () => {
+                selectedHinduMonthIndex--;
+                if (selectedHinduMonthIndex < 0) {
+                    selectedHinduMonthIndex = hinduCalendarMonths.length - 1;
+                    selectedHinduCalendarYear--; // Decrement conceptual Gregorian year
+                }
+                renderHinduCalendar();
+            });
+
+            document.getElementById('next-hindu-month').addEventListener('click', () => {
+                selectedHinduMonthIndex++;
+                if (selectedHinduMonthIndex >= hinduCalendarMonths.length) {
+                    selectedHinduMonthIndex = 0;
+                    selectedHinduCalendarYear++; // Increment conceptual Gregorian year
+                }
+                renderHinduCalendar();
+            });
+
+            // Add change listeners for the new Hindu month and year selectors
+            document.getElementById('hindu-month-select').addEventListener('change', (event) => {
+                selectedHinduMonthIndex = parseInt(event.target.value);
+                renderHinduCalendar();
+            });
+            document.getElementById('hindu-year-input').addEventListener('change', (event) => {
+                selectedHinduCalendarYear = parseInt(event.target.value);
+                renderHinduCalendar();
+            });
+
+            // Add event listener for the new converter button
+            document.getElementById('get-gregorian-date-button').addEventListener('click', convertHinduToGregorian);
+        }
+
+        // Function to handle tab clicks
+        function handleTabClick(event) {
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('active');
+            });
+
+            // Add active class to the clicked tab
+            event.target.classList.add('active');
+            currentActiveTab = event.target.id; // Update active tab tracker
+
+            // Show/hide Hindu details toggle based on active tab
+            if (currentActiveTab === 'gregorian-tab') {
+                hinduDetailsToggleContainer.classList.remove('hidden');
+                renderGregorianCalendar(currentMonth, currentYear, showHinduDetailsToggle.checked);
+            } else if (currentActiveTab === 'hindu-tab') {
+                hinduDetailsToggleContainer.classList.add('hidden');
+                renderHinduCalendar();
+            }
+        }
+
+        // Function to convert conceptual Hindu date to conceptual Gregorian date
+        function convertHinduToGregorian() {
+            const inputYear = parseInt(document.getElementById('converter-year').value);
+            const inputHinduMonthIndex = parseInt(document.getElementById('converter-hindu-month').value);
+            const inputTithiIndex = parseInt(document.getElementById('converter-tithi').value); // 0-indexed Tithi
+
+            const converterResultDiv = document.getElementById('converter-result');
+            converterResultDiv.classList.remove('hidden'); // Show the result div
+
+            if (isNaN(inputYear) || inputYear < 1900 || inputYear > 2100) {
+                converterResultDiv.textContent = "Please enter a valid year (1900-2100).";
+                return;
+            }
+
+            // Conceptual start of Chaitra 1 for the given year (approx. March 21st)
+            let baseGregorianDate = new Date(inputYear, 2, 21); // March 21st
+
+            // Add days for Hindu month offset
+            // Each Hindu month is approx 29.5 days.
+            // Chaitra is index 0, Vaishakha is index 1, etc.
+            const daysOffsetForMonth = Math.round(inputHinduMonthIndex * 29.5);
+            baseGregorianDate.setDate(baseGregorianDate.getDate() + daysOffsetForMonth);
+
+            // Add days for Tithi offset (Tithi 1 is day 0, Tithi 2 is day 1, etc.)
+            baseGregorianDate.setDate(baseGregorianDate.getDate() + inputTithiIndex);
+
+            const resultDateString = baseGregorianDate.toLocaleDateString('en-US', {
+                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+            });
+
+            converterResultDiv.textContent = `Conceptual Gregorian Date: ${resultDateString}`;
+        }
+
+
+        // Add event listeners to tabs
+        gregorianTab.addEventListener('click', handleTabClick);
+        hinduTab.addEventListener('click', handleTabClick);
+
+        // Add event listener for the toggle switch
+        showHinduDetailsToggle.addEventListener('change', () => {
+            // Only re-render Gregorian calendar if it's the active tab
+            if (currentActiveTab === 'gregorian-tab') {
+                renderGregorianCalendar(currentMonth, currentYear, showHinduDetailsToggle.checked);
+            }
+        });
+
+        // Render Gregorian calendar on initial load
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize with the toggle switch's default state (checked)
+            renderGregorianCalendar(currentMonth, currentYear, showHinduDetailsToggle.checked);
+        });
+
+    </script>
+</body>
+</html>
